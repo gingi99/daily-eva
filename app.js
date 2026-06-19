@@ -1,11 +1,10 @@
 let currentTemperature = null;
 let currentHumidity = null;
+let currentUvIndex = null;
 
 function updateCatMessage(message) {
   const catMessage = document.getElementById("catMessage");
-  if (catMessage) {
-    catMessage.innerText = `🐱 ${message}`;
-  }
+  if (catMessage) catMessage.innerText = `🐱 ${message}`;
 }
 
 function showRandomCat() {
@@ -17,12 +16,10 @@ function showRandomCat() {
     "cats/cat5.jpg"
   ];
 
-  const randomCat = cats[Math.floor(Math.random() * cats.length)];
   const catImage = document.getElementById("dailyCat");
-
   if (!catImage) return;
 
-  catImage.src = randomCat;
+  catImage.src = cats[Math.floor(Math.random() * cats.length)];
   catImage.style.display = "block";
 }
 
@@ -42,25 +39,36 @@ function success(position) {
 
   document.getElementById("location").innerText = "📍 Posizione rilevata";
 
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=auto`;
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,uv_index` +
+    `&timezone=auto`;
 
   fetch(url)
     .then(response => response.json())
     .then(data => {
       currentTemperature = data.current.temperature_2m;
       currentHumidity = data.current.relative_humidity_2m;
+      currentUvIndex = data.current.uv_index;
+
       const wind = data.current.wind_speed_10m;
 
       document.getElementById("temperature").innerText =
         `🌡️ Temperatura: ${currentTemperature}°C | Umidità: ${currentHumidity}% | Vento: ${wind} km/h`;
 
+      document.getElementById("uvIndex").innerText =
+        `☀️ Indice UV: ${currentUvIndex}`;
+
       document.getElementById("weatherAdvice").innerText =
         createWeatherAdvice(currentTemperature, currentHumidity);
 
+      document.getElementById("sunAdvice").innerText =
+        createSunAdvice(currentUvIndex);
+
       if (currentTemperature >= 30) {
         updateCatMessage("Oggi fa caldo. Prima acqua, poi ansia.");
-      } else if (currentTemperature <= 10) {
-        updateCatMessage("Oggi copriti bene. Il corpo va tenuto al sicuro.");
+      } else if (currentUvIndex >= 8) {
+        updateCatMessage("Oggi il sole picchia forte. Crema prima di uscire.");
       } else {
         updateCatMessage("Oggi sembra gestibile. Partiamo piano.");
       }
@@ -99,6 +107,30 @@ function createWeatherAdvice(temp, humidity) {
   return "Oggi la temperatura è moderata: vestiti comoda e ascolta il tuo livello di energia.";
 }
 
+function createSunAdvice(uv) {
+  if (uv === null || uv === undefined) {
+    return "☀️ Non riesco a leggere l'indice UV.";
+  }
+
+  if (uv <= 2) {
+    return "🧴 UV basso: SPF facoltativo se stai poco fuori, ma meglio usarlo comunque sul viso.";
+  }
+
+  if (uv <= 5) {
+    return "🧴 UV moderato: SPF 30 consigliato. Se stai all'aperto, riapplica ogni 3-4 ore.";
+  }
+
+  if (uv <= 7) {
+    return "🧴 UV alto: SPF 50 consigliato. Riapplica ogni 2 ore se sei all'aperto.";
+  }
+
+  if (uv <= 10) {
+    return "🧴 UV molto alto: SPF 50+. Riapplica ogni 2 ore, evita sole diretto tra 12 e 16.";
+  }
+
+  return "🧴 UV estremo: SPF 50+ obbligatorio. Riapplica ogni 90 minuti se sei fuori ed evita esposizione diretta.";
+}
+
 function calculateSleepHours(sleepTime, wakeTime) {
   if (!sleepTime || !wakeTime) return null;
 
@@ -108,11 +140,98 @@ function calculateSleepHours(sleepTime, wakeTime) {
   let sleepMinutes = sleepH * 60 + sleepM;
   let wakeMinutes = wakeH * 60 + wakeM;
 
-  if (wakeMinutes <= sleepMinutes) {
-    wakeMinutes += 24 * 60;
-  }
+  if (wakeMinutes <= sleepMinutes) wakeMinutes += 24 * 60;
 
   return Math.round(((wakeMinutes - sleepMinutes) / 60) * 10) / 10;
+}
+
+function calculateCyclePhase(lastPeriodDate, cycleLength, periodLength) {
+  if (!lastPeriodDate) return "non_specificato";
+
+  const start = new Date(lastPeriodDate);
+  const today = new Date();
+
+  start.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return "non_specificato";
+
+  const cycleDay = (diffDays % cycleLength) + 1;
+
+  if (cycleDay <= periodLength) return "mestruazione";
+
+  const ovulationDay = Math.round(cycleLength - 14);
+
+  if (cycleDay < ovulationDay - 4) return "follicolare_iniziale";
+  if (cycleDay < ovulationDay - 1) return "follicolare_avanzata";
+  if (cycleDay <= ovulationDay + 1) return "ovulazione";
+  if (cycleDay < cycleLength - 5) return "luteale_iniziale";
+
+  return "luteale_avanzata";
+}
+
+function getCycleAdvice(phase) {
+  const advice = {
+    non_specificato: {
+      body: "Non hai inserito dati sufficienti per calcolare la fase del ciclo.",
+      food: ["pasti regolari", "proteine leggere", "frutta e verdura"],
+      drinks: ["acqua regolare", "tisana se ti rilassa"]
+    },
+    mestruazione: {
+      body: "Durante la mestruazione è normale avere meno energia, più pesantezza e più bisogno di riposo.",
+      food: ["ferro: lenticchie, spinaci, carne rossa se la mangi", "magnesio: cacao amaro, mandorle", "proteine leggere"],
+      drinks: ["2 L di acqua", "tisana zenzero", "tisana camomilla se hai crampi"]
+    },
+    follicolare_iniziale: {
+      body: "Nella fase follicolare iniziale il corpo può ripartire gradualmente: non serve forzare subito.",
+      food: ["uova o yogurt", "cereali integrali", "verdure fresche"],
+      drinks: ["acqua", "tè verde se lo tolleri"]
+    },
+    follicolare_avanzata: {
+      body: "Nella fase follicolare avanzata potresti avere più energia e lucidità.",
+      food: ["proteine", "carboidrati complessi", "frutta fresca"],
+      drinks: ["2 L acqua", "acqua con limone se ti piace"]
+    },
+    ovulazione: {
+      body: "In ovulazione alcune persone si sentono più energiche, altre più sensibili o gonfie.",
+      food: ["verdure crucifere: broccoli, cavolfiore", "pesce o legumi", "frutta ricca di acqua"],
+      drinks: ["acqua", "tisana finocchio se hai gonfiore"]
+    },
+    luteale_iniziale: {
+      body: "Nella fase luteale iniziale può aumentare il bisogno di stabilità: pasti regolari aiutano.",
+      food: ["carboidrati complessi", "proteine", "frutta secca"],
+      drinks: ["acqua regolare", "tisane leggere"]
+    },
+    luteale_avanzata: {
+      body: "Nella fase luteale avanzata/PMS è normale sentirsi più irritabile, gonfia, affamata o vulnerabile.",
+      food: ["magnesio: mandorle, cacao amaro, banane", "potassio: banana, patate, avocado", "riduci sale e alcol se ti gonfiano"],
+      drinks: ["2-2,5 L acqua", "tisana finocchio", "tisana zenzero"]
+    },
+    nessun_sintomo: {
+      body: "Oggi non segnali sintomi particolari legati al ciclo.",
+      food: ["pasti bilanciati", "proteine", "verdure"],
+      drinks: ["2 L acqua"]
+    }
+  };
+
+  return advice[phase] || advice.non_specificato;
+}
+
+function formatCycle(phase) {
+  const labels = {
+    non_specificato: "Non specificato",
+    mestruazione: "Mestruazione",
+    follicolare_iniziale: "Fase follicolare iniziale",
+    follicolare_avanzata: "Fase follicolare avanzata",
+    ovulazione: "Ovulazione",
+    luteale_iniziale: "Fase luteale iniziale",
+    luteale_avanzata: "Fase luteale avanzata / PMS",
+    nessun_sintomo: "Nessun sintomo particolare"
+  };
+
+  return labels[phase] || "Non specificato";
 }
 
 function calculateDayScore({ sleepHours, nightWakeups, mood, energy, cyclePhase }) {
@@ -142,6 +261,11 @@ function calculateDayScore({ sleepHours, nightWakeups, mood, energy, cyclePhase 
     reasons.push("umidità alta");
   }
 
+  if (currentUvIndex !== null && currentUvIndex >= 8) {
+    score += 1;
+    reasons.push("UV molto alto");
+  }
+
   if (energy <= 3) {
     score += 2;
     reasons.push("energia bassa");
@@ -158,7 +282,7 @@ function calculateDayScore({ sleepHours, nightWakeups, mood, energy, cyclePhase 
     reasons.push("umore instabile");
   }
 
-  if (cyclePhase === "pre_ciclo" || cyclePhase === "ciclo") {
+  if (cyclePhase === "mestruazione" || cyclePhase === "luteale_avanzata") {
     score += 1;
     reasons.push("fase del ciclo più delicata");
   }
@@ -166,7 +290,7 @@ function calculateDayScore({ sleepHours, nightWakeups, mood, energy, cyclePhase 
   if (score <= 2) {
     return {
       label: "🟢 Giornata favorevole",
-      text: "Oggi i dati non indicano una giornata particolarmente pesante. Mantieni una routine semplice e non caricarti inutilmente.",
+      text: "Oggi i dati non indicano una giornata particolarmente pesante.",
       reasons
     };
   }
@@ -174,36 +298,16 @@ function calculateDayScore({ sleepHours, nightWakeups, mood, energy, cyclePhase 
   if (score <= 5) {
     return {
       label: "🟡 Giornata delicata",
-      text: "Oggi ci sono alcuni fattori che potrebbero renderti più sensibile. Non è una giornata negativa: è una giornata da gestire con più attenzione.",
+      text: "Oggi ci sono alcuni fattori che potrebbero renderti più sensibile.",
       reasons
     };
   }
 
   return {
     label: "🔴 Giornata di protezione",
-    text: "Oggi diversi fattori possono pesare insieme. L'obiettivo non è fare tutto, ma proteggere energia, corpo e lucidità.",
+    text: "Oggi diversi fattori possono pesare insieme. Proteggi energia, corpo e lucidità.",
     reasons
   };
-}
-
-function getCycleText(phase) {
-  if (phase === "pre_ciclo") {
-    return "Se sei nella fase pre-ciclo, è possibile sentirti più sensibile, irritabile o fisicamente vulnerabile. Non significa che stai andando peggio: potrebbe essere una fase più delicata.";
-  }
-
-  if (phase === "ciclo") {
-    return "Durante il ciclo potresti avere meno energia, più pesantezza fisica o più bisogno di riposo. Oggi ha senso alleggerire le aspettative.";
-  }
-
-  if (phase === "ovulazione") {
-    return "In ovulazione alcune persone si sentono più energiche, altre più sensibili. Osserva come risponde il tuo corpo senza forzarti.";
-  }
-
-  if (phase === "post_ciclo") {
-    return "Dopo il ciclo potresti sentirti gradualmente più stabile. Se oggi non è così, non forzare: guarda anche sonno, caldo e stress.";
-  }
-
-  return "";
 }
 
 function analyzeAnxiety(text) {
@@ -211,7 +315,7 @@ function analyzeAnxiety(text) {
 
   if (lower.includes("svenire") || lower.includes("malore") || lower.includes("stare male")) {
     return {
-      facts: "Potresti sentirti più sensibile se hai dormito poco, fa caldo, sei nel periodo del ciclo o hai bevuto poco.",
+      facts: "Caldo, poco sonno, ciclo e poca idratazione possono amplificare le sensazioni fisiche.",
       hypothesis: "Che starai sicuramente male.",
       reminder: "Una sensazione fisica non è automaticamente un segnale di pericolo."
     };
@@ -221,15 +325,7 @@ function analyzeAnxiety(text) {
     return {
       facts: "Hai una preoccupazione legata al lavoro.",
       hypothesis: "Che gli altri stiano pensando qualcosa di negativo su di te.",
-      reminder: "Finché non hai una prova concreta, trattala come un'ipotesi, non come un fatto."
-    };
-  }
-
-  if (lower.includes("dormire") || lower.includes("sonno") || lower.includes("insonnia")) {
-    return {
-      facts: "Hai paura di non dormire o di dormire male.",
-      hypothesis: "Che una notte difficile rovinerà tutta la giornata.",
-      reminder: "Dormire male è fastidioso, ma non significa automaticamente che domani andrà male."
+      reminder: "Finché non hai una prova concreta, trattala come un'ipotesi."
     };
   }
 
@@ -246,8 +342,14 @@ function generateReport() {
   const nightWakeups = document.getElementById("nightWakeups").value;
   const mood = document.getElementById("mood").value;
   const energy = Number(document.getElementById("energy").value);
-  const cyclePhase = document.getElementById("cyclePhase").value;
   const anxiety = document.getElementById("anxiety").value.trim();
+
+  const lastPeriodDate = document.getElementById("lastPeriodDate").value;
+  const cycleLength = Number(document.getElementById("cycleLength").value) || 28;
+  const periodLength = Number(document.getElementById("periodLength").value) || 5;
+
+  const cyclePhase = calculateCyclePhase(lastPeriodDate, cycleLength, periodLength);
+  const cycleAdvice = getCycleAdvice(cyclePhase);
 
   const sleepHours = calculateSleepHours(sleepTime, wakeTime);
   const dayScore = calculateDayScore({ sleepHours, nightWakeups, mood, energy, cyclePhase });
@@ -264,14 +366,7 @@ function generateReport() {
   let needs = [];
 
   if (sleepHours !== null) {
-    if (sleepHours < 6) {
-      dayContext += `Hai dormito circa ${sleepHours} ore: oggi potresti sentirti più fragile, stanca o irritabile. `;
-      needs.push("non pretendere troppo da te stessa");
-    } else if (sleepHours < 7) {
-      dayContext += `Hai dormito circa ${sleepHours} ore: potresti non sentirti al massimo. `;
-    } else {
-      dayContext += `Hai dormito circa ${sleepHours} ore: il sonno oggi sembra abbastanza stabile. `;
-    }
+    dayContext += `Hai dormito circa ${sleepHours} ore. `;
   }
 
   if (nightWakeups === "Più volte") {
@@ -282,27 +377,18 @@ function generateReport() {
   if (currentTemperature !== null && currentTemperature >= 30) {
     dayContext += "Il caldo può aumentare stanchezza, debolezza e agitazione fisica. ";
     needs.push("bere almeno 2,5 L d'acqua");
-    needs.push("mangiare qualcosa di leggero ma salato");
   }
 
-  if (currentHumidity !== null && currentHumidity >= 65) {
-    dayContext += "L'umidità alta può rendere la giornata più pesante del previsto. ";
-    needs.push("bere a piccoli sorsi durante il giorno");
+  if (currentUvIndex !== null && currentUvIndex >= 6) {
+    needs.push("mettere crema solare prima di uscire");
   }
 
-  const cycleText = getCycleText(cyclePhase);
-  if (cycleText) {
-    dayContext += cycleText + " ";
-    needs.push("ascoltare il corpo senza giudicarti");
+  if (cycleAdvice.body) {
+    dayContext += cycleAdvice.body + " ";
   }
 
   if (energy <= 3) {
-    dayContext += "La tua energia è bassa: oggi conviene ragionare in modalità protezione, non prestazione. ";
     needs.push("fare solo le cose essenziali");
-  }
-
-  if (mood === "Male") {
-    needs.push("non interpretare ogni sensazione come un segnale grave");
   }
 
   if (needs.length === 0) {
@@ -311,15 +397,12 @@ function generateReport() {
     needs.push("mangiare in modo stabile");
   }
 
-  const goal = energy <= 4 || mood === "Male"
-    ? "Oggi il tuo obiettivo non è performare. È arrivare a sera stabile."
-    : "Oggi il tuo obiettivo è mantenere equilibrio senza caricarti troppo.";
+  const needsList = needs.slice(0, 3).map(item => `<li>${item}</li>`).join("");
+  const reasonsText = dayScore.reasons.length > 0 ? dayScore.reasons.join(", ") : "nessun fattore critico evidente";
 
   let anxietyBlock = "";
-
   if (anxiety !== "") {
     const anxietyAnalysis = analyzeAnxiety(anxiety);
-
     anxietyBlock = `
       <h3>La tua preoccupazione</h3>
       <p><strong>Hai scritto:</strong> ${anxiety}</p>
@@ -328,11 +411,6 @@ function generateReport() {
       <p><strong>Promemoria:</strong> ${anxietyAnalysis.reminder}</p>
     `;
   }
-
-  const needsList = needs.slice(0, 3).map(item => `<li>${item}</li>`).join("");
-  const reasonsText = dayScore.reasons.length > 0
-    ? dayScore.reasons.join(", ")
-    : "nessun fattore critico evidente";
 
   document.getElementById("reportText").innerHTML = `
     <h3>Indice giornata</h3>
@@ -343,13 +421,28 @@ function generateReport() {
     <h3>Come potrebbe influenzarti la giornata</h3>
     <p>${dayContext || "Oggi non emergono segnali particolarmente pesanti dai dati inseriti."}</p>
 
+    <h3>Protezione solare</h3>
+    <p>${createSunAdvice(currentUvIndex)}</p>
+
+    <h3>Fase del ciclo calcolata</h3>
+    <p><strong>${formatCycle(cyclePhase)}</strong></p>
+    <p>${cycleAdvice.body}</p>
+
+    <h3>Cosa mangiare oggi</h3>
+    <ul>${cycleAdvice.food.map(item => `<li>${item}</li>`).join("")}</ul>
+
+    <h3>Cosa bere oggi</h3>
+    <ul>${cycleAdvice.drinks.map(item => `<li>${item}</li>`).join("")}</ul>
+
     <h3>Cosa ti serve oggi</h3>
     <ul>${needsList}</ul>
 
     ${anxietyBlock}
 
     <h3>Obiettivo del giorno</h3>
-    <p>${goal}</p>
+    <p>${energy <= 4 || mood === "Male"
+      ? "Oggi il tuo obiettivo non è performare. È arrivare a sera stabile."
+      : "Oggi il tuo obiettivo è mantenere equilibrio senza caricarti troppo."}</p>
   `;
 
   document.getElementById("reportCard").style.display = "block";
@@ -359,11 +452,15 @@ function generateReport() {
     time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
     temperature: currentTemperature,
     humidity: currentHumidity,
+    uvIndex: currentUvIndex,
     sleepHours,
     nightWakeups,
     mood,
     energy,
     cyclePhase,
+    lastPeriodDate,
+    cycleLength,
+    periodLength,
     anxiety,
     dayScore: dayScore.label
   });
@@ -394,7 +491,6 @@ function saveEveningCheckOut() {
   }
 
   const lastIndex = checkins.length - 1;
-
   checkins[lastIndex].eveningOutcome = outcome;
   checkins[lastIndex].eveningNote = note;
   checkins[lastIndex].eveningDate = new Date().toLocaleDateString("it-IT");
@@ -433,7 +529,7 @@ function showHistory() {
         <p>Energia: ${item.energy}/10</p>
         <p>Umore: ${item.mood}</p>
         <p>Ciclo: ${formatCycle(item.cyclePhase)}</p>
-        <p>Temperatura: ${item.temperature ?? "--"}°C</p>
+        <p>UV: ${item.uvIndex ?? "--"}</p>
         <p>Check-out serale: ${outcomeText}</p>
       </div>
     `;
@@ -441,19 +537,6 @@ function showHistory() {
 
   historyCard.innerHTML = historyHTML;
   historyCard.style.display = "block";
-}
-
-function formatCycle(phase) {
-  const labels = {
-    non_specificato: "Non specificato",
-    pre_ciclo: "Prima del ciclo",
-    ciclo: "Durante il ciclo",
-    post_ciclo: "Dopo il ciclo",
-    ovulazione: "Ovulazione",
-    nessun_sintomo: "Nessun sintomo particolare"
-  };
-
-  return labels[phase] || "Non specificato";
 }
 
 function showInsights() {
@@ -472,60 +555,30 @@ function showInsights() {
   }
 
   const lastCheckins = checkins.slice(-14);
-  const insights = [];
-
   const averageEnergy =
     lastCheckins.reduce((sum, item) => sum + Number(item.energy || 0), 0) / lastCheckins.length;
 
-  const lowSleepDays = lastCheckins.filter(item => item.sleepHours !== null && item.sleepHours < 6);
-  const goodSleepDays = lastCheckins.filter(item => item.sleepHours !== null && item.sleepHours >= 7);
-  const hotDays = lastCheckins.filter(item => item.temperature !== null && item.temperature >= 30);
   const anxietyDays = lastCheckins.filter(item => item.anxiety && item.anxiety.length > 0);
-
+  const highUvDays = lastCheckins.filter(item => item.uvIndex !== null && item.uvIndex >= 6);
   const cycleDays = lastCheckins.filter(item =>
     item.cyclePhase &&
     item.cyclePhase !== "non_specificato" &&
     item.cyclePhase !== "nessun_sintomo"
   );
 
-  if (lowSleepDays.length >= 2) {
-    const energy = lowSleepDays.reduce((sum, item) => sum + Number(item.energy || 0), 0) / lowSleepDays.length;
-    insights.push(`Quando dormi meno di 6 ore, la tua energia media scende a ${energy.toFixed(1)}/10.`);
-  }
-
-  if (goodSleepDays.length >= 2) {
-    const energy = goodSleepDays.reduce((sum, item) => sum + Number(item.energy || 0), 0) / goodSleepDays.length;
-    insights.push(`Quando dormi almeno 7 ore, la tua energia media sale a ${energy.toFixed(1)}/10.`);
-  }
-
-  if (hotDays.length >= 2) {
-    const badMood = hotDays.filter(item => item.mood === "Male" || item.mood === "Così così");
-    const percentage = Math.round((badMood.length / hotDays.length) * 100);
-    insights.push(`Nei giorni sopra i 30°C, nel ${percentage}% dei casi il tuo umore è stato "così così" o "male".`);
-  }
-
-  if (cycleDays.length >= 2) {
-    const cycleEnergy =
-      cycleDays.reduce((sum, item) => sum + Number(item.energy || 0), 0) / cycleDays.length;
-
-    const cycleBadMood = cycleDays.filter(item => item.mood === "Male" || item.mood === "Così così");
-    const percentage = Math.round((cycleBadMood.length / cycleDays.length) * 100);
-
-    insights.push(`Nei giorni collegati al ciclo, la tua energia media è ${cycleEnergy.toFixed(1)}/10.`);
-    insights.push(`Nei giorni collegati al ciclo, nel ${percentage}% dei casi il tuo umore è stato "così così" o "male".`);
-  }
-
-  const preCycleDays = lastCheckins.filter(item => item.cyclePhase === "pre_ciclo");
-
-  if (preCycleDays.length >= 2) {
-    const preCycleAnxiety = preCycleDays.filter(item => item.anxiety && item.anxiety.length > 0);
-    const percentage = Math.round((preCycleAnxiety.length / preCycleDays.length) * 100);
-
-    insights.push(`Nei giorni prima del ciclo, hai registrato preoccupazioni nel ${percentage}% dei casi.`);
-  }
+  let insights = [];
 
   if (anxietyDays.length > 0) {
     insights.push(`Hai scritto una preoccupazione in ${anxietyDays.length} check-in su ${lastCheckins.length}.`);
+  }
+
+  if (highUvDays.length > 0) {
+    insights.push(`Negli ultimi check-in ci sono stati ${highUvDays.length} giorni con UV alto: la protezione solare è importante.`);
+  }
+
+  if (cycleDays.length >= 2) {
+    const cycleEnergy = cycleDays.reduce((sum, item) => sum + Number(item.energy || 0), 0) / cycleDays.length;
+    insights.push(`Nei giorni collegati al ciclo, la tua energia media è ${cycleEnergy.toFixed(1)}/10.`);
   }
 
   const resolvedEveningChecks = lastCheckins.filter(item => item.eveningOutcome);
