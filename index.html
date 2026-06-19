@@ -33,7 +33,9 @@
 
       <p id="location">📍 Posizione: in caricamento...</p>
       <p id="temperature">🌡️ Temperatura: --</p>
+      <p id="uvIndex">☀️ Indice UV: --</p>
       <p id="weatherAdvice">Sto preparando i consigli per oggi...</p>
+      <p id="sunAdvice">Sto controllando la protezione solare consigliata...</p>
     </div>
 
     <div class="card">
@@ -62,15 +64,16 @@
       <label>Energia da 1 a 10</label>
       <input type="number" id="energy" min="1" max="10" value="5">
 
-      <label>Fase del ciclo</label>
-      <select id="cyclePhase">
-        <option value="non_specificato">Non specificato</option>
-        <option value="pre_ciclo">Prima del ciclo</option>
-        <option value="ciclo">Durante il ciclo</option>
-        <option value="post_ciclo">Dopo il ciclo</option>
-        <option value="ovulazione">Ovulazione</option>
-        <option value="nessun_sintomo">Nessun sintomo particolare</option>
-      </select>
+      <h3>🌸 Ciclo mestruale</h3>
+
+      <label>Data inizio ultima mestruazione</label>
+      <input type="date" id="lastPeriodDate">
+
+      <label>Durata media ciclo (giorni)</label>
+      <input type="number" id="cycleLength" value="28" min="21" max="40">
+
+      <label>Durata media mestruazione (giorni)</label>
+      <input type="number" id="periodLength" value="5" min="2" max="10">
 
       <label>Hai ansie oggi?</label>
       <textarea id="anxiety" placeholder="Scrivi qui cosa ti preoccupa..."></textarea>
@@ -100,7 +103,7 @@
       </select>
 
       <label>Com'è andata davvero?</label>
-      <textarea id="eveningNote" placeholder="Scrivi cosa è successo realmente..."></textarea>
+      <textarea id="eveningNote"></textarea>
 
       <button onclick="saveEveningCheckOut()">Salva check-out</button>
     </div>
