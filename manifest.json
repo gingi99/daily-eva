@@ -1,0 +1,16 @@
+{
+  "name": "Daily Eva",
+  "short_name": "Daily Eva",
+  "description": "Assistente quotidiano personale",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#4a90e2",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}

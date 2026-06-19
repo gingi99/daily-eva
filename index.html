@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Eva</title>
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.png">
+
+  <meta name="theme-color" content="#4a90e2">
+</head>
+
+<body>
+  <div class="container">
+
+    <h1>🌤️ Daily Eva</h1>
+
+    <div class="card">
+      <h2>Buongiorno Eva</h2>
+
+      <img
+        id="dailyCat"
+        src=""
+        alt="Gattino del giorno"
+        class="daily-cat"
+      >
+
+      <div id="catMessage" class="cat-message">
+        🐱 Ciao Eva. Facciamo il punto della giornata.
+      </div>
+
+      <p id="location">📍 Posizione: in caricamento...</p>
+      <p id="temperature">🌡️ Temperatura: --</p>
+      <p id="weatherAdvice">Sto preparando i consigli per oggi...</p>
+    </div>
+
+    <div class="card">
+      <h2>Check-in del mattino</h2>
+
+      <label>A che ora ti sei addormentata?</label>
+      <input type="time" id="sleepTime">
+
+      <label>A che ora ti sei svegliata?</label>
+      <input type="time" id="wakeTime">
+
+      <label>Ti sei svegliata durante la notte?</label>
+      <select id="nightWakeups">
+        <option>No</option>
+        <option>Una volta</option>
+        <option>Più volte</option>
+      </select>
+
+      <label>Come ti senti oggi?</label>
+      <select id="mood">
+        <option>Bene</option>
+        <option>Così così</option>
+        <option>Male</option>
+      </select>
+
+      <label>Energia da 1 a 10</label>
+      <input type="number" id="energy" min="1" max="10" value="5">
+
+      <label>Fase del ciclo</label>
+      <select id="cyclePhase">
+        <option value="non_specificato">Non specificato</option>
+        <option value="pre_ciclo">Prima del ciclo</option>
+        <option value="ciclo">Durante il ciclo</option>
+        <option value="post_ciclo">Dopo il ciclo</option>
+        <option value="ovulazione">Ovulazione</option>
+        <option value="nessun_sintomo">Nessun sintomo particolare</option>
+      </select>
+
+      <label>Hai ansie oggi?</label>
+      <textarea id="anxiety" placeholder="Scrivi qui cosa ti preoccupa..."></textarea>
+
+      <button onclick="generateReport()">Genera rapporto</button>
+    </div>
+
+    <div class="card" id="reportCard" style="display:none;">
+      <h2>Rapporto Eva</h2>
+      <div id="reportText"></div>
+    </div>
+
+    <div class="card" id="insightsCard" style="display:none;"></div>
+
+    <div class="card" id="historyCard" style="display:none;"></div>
+
+    <div class="card" id="eveningCard">
+      <h2>Check-out serale</h2>
+
+      <p>La preoccupazione di oggi si è verificata davvero?</p>
+
+      <select id="eveningOutcome">
+        <option value="">Seleziona una risposta</option>
+        <option value="no">No</option>
+        <option value="partly">In parte</option>
+        <option value="yes">Sì</option>
+      </select>
+
+      <label>Com'è andata davvero?</label>
+      <textarea id="eveningNote" placeholder="Scrivi cosa è successo realmente..."></textarea>
+
+      <button onclick="saveEveningCheckOut()">Salva check-out</button>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
